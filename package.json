@@ -1,6 +1,5 @@
 {
   "author": "Matheus de Sousa",
-  "version": "1.0",
   "dependencies": {
     "@google-cloud/language": "^4.0.0",
     "body-parser": "^1.19.0",
