@@ -1,9 +1,9 @@
 {
   "name": "my-awesome-package",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "author": "Matheus de Sousa",
   "scripts": {
-    "start": "node index.js"
+    "start": "nodemon index.js"
   },
   "dependencies": {
     "@google-cloud/language": "^4.0.0",
@@ -11,10 +11,15 @@
     "btoa": "^1.2.1",
     "express": "^4.17.1",
     "global": "^4.4.0",
+    "http": "^0.0.1-security",
     "mysql2": "^2.1.0",
     "node-fetch": "^2.6.0",
     "nodemon": "^2.0.3",
     "sequelize": "^5.21.7",
     "sequelize-cli": "^5.5.1"
+  },
+  "engines": {
+    "node": "*",
+    "npm": "*"
   }
 }
