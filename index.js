@@ -104,7 +104,14 @@ app.post("/quest", (req, res) => {
     answer,
     confidence
   }})
+})
 
+
+app.get("/quest", (res) => {
+  const data = Question.findAll();
+  res.json({data: {
+    data
+  }})
 })
 
 app.listen(process.env.PORT || 3333);
