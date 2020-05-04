@@ -114,7 +114,7 @@ app.post("/quest", (req, res) => {
 
 app.get("/quest", async (req, res) => {
   const data = await Question.findAll();
-  res.json(JSON.stringify(data));
+  res.json(data);
 });
 
 app.listen(process.env.PORT || 3333);
