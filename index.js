@@ -107,7 +107,7 @@ app.post("/quest", (req, res) => {
 })
 
 
-app.get("/quest", (res) => {
+app.get("/quest", (req, res) => {
   const data = Question.findAll();
   res.json({data: {
     data
