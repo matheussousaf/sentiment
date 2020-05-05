@@ -14,45 +14,13 @@ const app = express();
 const GOT_IT_URL = "https://api.gotit.ai/NLU/v1.4/Analyze";
 const API_KEY =
   "Basic " + btoa("1562-gliaxITp:oMMx6HvvYih89mhdAvsDtubSdY6ujMZHj1TNsneyVEQW");
+const API_ML_OTTO = "http://localhost:5000/predict";
 
 app.use(express.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 app.get("/", (req, res) => {
   res.json({ version: packageJson.version });
-});
-
-app.post("/question", (req, res) => {
-  const { question } = req.body;
-
-  const formattedQuestion = JSON.stringify({
-    T: question,
-    SL: "PtBr",
-    S: true,
-  });
-
-  console.log(formattedQuestion);
-
-  fetch(GOT_IT_URL, {
-    method: "post",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: API_KEY,
-    },
-    body: formattedQuestion,
-  })
-    .then((res) => res.json())
-    .then((result) => {
-      console.log(result);
-      res.json({
-        score: result.sentiment.score,
-        label: result.sentiment.label,
-        question: question,
-      });
-    })
-    .catch((e) => {
-      console.log(e);
-    });
 });
 
 // checks if env is Heroku, if so, sets sequelize to utilize the database hosted on heroku
@@ -64,52 +32,115 @@ if (process.env.DATABASE_URL) {
   });
 }
 
-app.post("/questionv2", async (req, res) => {
-  // Creates a client
-  const client = new language.LanguageServiceClient();
-
-  const { question } = req.body;
-
-  const document = {
-    content: question,
-    type: "PLAIN_TEXT",
-  };
-
-  const [result] = await client.analyzeSentiment({ document });
-
-  const sentiment = result.documentSentiment;
-
-  let label = "";
-  if (sentiment.score > 0) {
-    label = "POSITIVE";
-  } else if (sentiment.score < 0) {
-    label = "NEGATIVE";
-  } else if (sentiment.score === 0) {
-    label = "NEUTRAL";
-  }
-
-  return res.json({
-    score: sentiment.score,
-    label: label,
-    question: question,
+async function fetchInGotit(question) {
+  const formattedQuestion = JSON.stringify({
+    T: question,
+    SL: "PtBr",
+    S: true,
   });
-});
+
+  return await fetch(GOT_IT_URL, {
+    method: "post",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: API_KEY,
+    },
+    body: formattedQuestion,
+  })
+    .then((res) => res.json())
+    .then((result) => {
+      return new Promise((resolve, reject) => {
+        const response = { score: result.sentiment.score };
+
+        if (result.sentiment.label === "POSITIVE")
+          resolve({ ...response, label: 2 });
+        if (result.sentiment.label === "NEUTRAL") {
+          resolve({ ...response, label: 1 });
+        }
+        if (result.sentiment.label === "NEGATIVE")
+          resolve({ ...response, label: 0 });
+      });
+    });
+}
 
 app.post("/quest", (req, res) => {
-  const { question, answer, confidence } = req.body;
+  const { question } = req.body;
 
-  Question.create({
-    question: question,
-    answer: answer,
-    confidence: confidence,
-  });
-  res.json({
-    data: {
-      question,
-      answer,
-      confidence,
+  const formattedQuestion = {
+    msg: question,
+    confidence: 1,
+    flag_offense: 1,
+  };
+
+  fetch(API_ML_OTTO, {
+    method: "post",
+    headers: {
+      "Content-Type": "application/json",
     },
-  });
+    body: JSON.stringify(formattedQuestion),
+  })
+    .then((res) => res.json())
+    .then(async (result) => {
+      const gotItResult = await fetchInGotit(question);
+
+      if (result.answer === 2) {
+        // Pergunta BOA
+        if (gotItResult.label === 2 || gotItResult.label === 1) {
+          Question.create({
+            question: question,
+            answer:
+              "Obrigado pela pergunta! Te retornaremos o quanto antes possível",
+            confidence: gotItResult.score,
+          });
+          res.json({
+            data: {
+              question: question,
+              answer:
+                "Obrigado pela pergunta! Te retornaremos o quanto antes possível",
+              confidence: gotItResult.score,
+            },
+          });
+        } else {
+          res.json({
+            question: question,
+            answer: "Pergunta imprópria, redirecionando.",
+            confidence: 1,
+          });
+        }
+      } else if (result.answer === 1) {
+        // Pergunta NEUTRA
+
+        if (gotItResult.label === 2 || gotItResult.label === 1) {
+          Question.create({
+            question: question,
+            answer:
+              "Obrigado pela pergunta! Te retornaremos o quanto antes possível",
+            confidence: gotItResult.score,
+          });
+          res.json({
+            data: {
+              question: question,
+              answer:
+                "Obrigado pela pergunta! Te retornaremos o quanto antes possível",
+              confidence: gotItResult.score,
+            },
+          });
+        } else {
+          res.json({
+            question: question,
+            answer: "Pergunta imprópria, redirecionando.",
+            confidence: 1,
+          });
+        }
+      } else if (result.answer === 0) {
+        // Pergunta RUIM
+        res.json({
+          question: question,
+          answer: "Pergunta imprópria, redirecionando.",
+          confidence: 1,
+        });
+      }
+    });
 });
 
 app.get("/quest", async (req, res) => {
